@@ -1,0 +1,6 @@
+gradio
+librosa
+numpy
+soundfile
+requests
+python-dotenv
