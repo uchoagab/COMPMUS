@@ -116,6 +116,7 @@ def buscar_link_inteligente(resultados_api, palavras_chave):
 
 # --- PROCESSAMENTO ---
 def aplicar_textura_local(stem_path, textura_path):
+    """Aplica textura usando phase vocoder para mixagem fluída que preserva características tonais."""
     if not stem_path or not textura_path: return None, 44100
     
     y_stem, sr = librosa.load(stem_path, sr=44100)
@@ -127,13 +128,40 @@ def aplicar_textura_local(stem_path, textura_path):
         y_textura = np.tile(y_textura, reps)
     y_textura = y_textura[:len(y_stem)]
 
-    # Envelope Follower
-    frame, hop = 1024, 512
-    env = librosa.feature.rms(y=y_stem, frame_length=frame, hop_length=hop)[0]
-    env_interp = np.interp(np.arange(len(y_stem)), np.arange(len(env)) * hop, env)
-    env_interp = env_interp / (np.max(env_interp) + 1e-9)
+    # STFT para análise espectral
+    n_fft = 2048
+    hop_length = 512
     
-    return y_textura * env_interp, sr
+    # Espectrogramas
+    D_stem = librosa.stft(y_stem, n_fft=n_fft, hop_length=hop_length)
+    D_textura = librosa.stft(y_textura, n_fft=n_fft, hop_length=hop_length)
+    
+    # Magnitude e fase
+    mag_stem = np.abs(D_stem)
+    phase_stem = np.angle(D_stem)
+    mag_textura = np.abs(D_textura)
+    
+    # Envelope dinâmico do stem original
+    env_stem = librosa.feature.rms(y=y_stem, frame_length=n_fft, hop_length=hop_length)[0]
+    env_stem = env_stem / (np.max(env_stem) + 1e-9)
+    
+    # Transferência espectral: usa magnitude da textura modulada pela dinâmica do stem
+    # e mantém a fase do stem original para preservar características tonais
+    mag_textura_ajustada = mag_textura * env_stem
+    
+    # Mistura ponderada: 70% textura + 30% stem original para preservar harmônicos
+    mag_final = 0.7 * mag_textura_ajustada + 0.3 * mag_stem
+    
+    # Reconstrução com fase do stem original
+    D_final = mag_final * np.exp(1j * phase_stem)
+    
+    # ISTFT para obter áudio resultante
+    y_resultado = librosa.istft(D_final, hop_length=hop_length, length=len(y_stem))
+    
+    # Normalização suave
+    y_resultado = y_resultado / (np.max(np.abs(y_resultado)) + 1e-9) * 0.8
+    
+    return y_resultado, sr
 
 # --- PRINCIPAL ---
 def processar_tudo(input_music, tex_vocal, tex_drums, tex_bass, tex_guitar, tex_other):
@@ -159,6 +187,8 @@ def processar_tudo(input_music, tex_vocal, tex_drums, tex_bass, tex_guitar, tex_
             "Bass": tex_bass, "Guitar": tex_guitar, "Other": tex_other
         }
 
+        # Dicionário para armazenar stems processados
+        stems_processados = {}
         mix_final, sr_final = None, 44100
         processou_algo = False
 
@@ -178,6 +208,11 @@ def processar_tudo(input_music, tex_vocal, tex_drums, tex_bass, tex_guitar, tex_
                 print(f"🔹 Mantendo original: {inst}")
                 audio, sr = librosa.load(stem_path, sr=44100)
 
+            # Salvar stem individual processado
+            output_individual = f"resultado_{inst}.wav"
+            sf.write(output_individual, audio, sr)
+            stems_processados[inst] = output_individual
+
             # Mixagem
             if mix_final is None:
                 mix_final, sr_final = audio, sr
@@ -186,23 +221,33 @@ def processar_tudo(input_music, tex_vocal, tex_drums, tex_bass, tex_guitar, tex_
                 mix_final = mix_final[:m_len] + audio[:m_len]
 
         if not processou_algo:
-            return None
+            return None, None, None, None, None, None
 
-        # Salvar
+        # Salvar mix final
         if mix_final is not None:
             mix_final = mix_final / np.max(np.abs(mix_final)) # Normalizar
-            output = "resultado_final.wav"
-            sf.write(output, mix_final, sr_final)
+            output_completo = "resultado_completo.wav"
+            sf.write(output_completo, mix_final, sr_final)
             print("✅ Concluído com sucesso!")
-            return output
+            
+            # Retornar os 6 outputs: vocal, drums, bass, guitar, other, completo
+            return (
+                stems_processados.get("Vocals"),
+                stems_processados.get("Drums"),
+                stems_processados.get("Bass"),
+                stems_processados.get("Guitar"),
+                stems_processados.get("Other"),
+                output_completo
+            )
             
     except Exception as e:
         print(f"❌ ERRO GERAL: {e}")
-        return None
+        return None, None, None, None, None, None
 
 # --- INTERFACE ---
 with gr.Blocks(title="Texture Tool V2") as demo:
     gr.Markdown("# 🎹 Texture Transfer Tool")
+    gr.Markdown("### Separe sua música em stems e aplique texturas personalizadas")
     
     with gr.Row():
         input_music = gr.Audio(label="1. Música Original", type="filepath")
@@ -211,18 +256,31 @@ with gr.Blocks(title="Texture Tool V2") as demo:
     with gr.Row():
         tex_vocal = gr.Audio(label="Textura Voz", type="filepath")
         tex_drums = gr.Audio(label="Textura Bateria", type="filepath")
+    with gr.Row():
         tex_bass = gr.Audio(label="Textura Baixo", type="filepath")
         tex_guitar = gr.Audio(label="Textura Guitarra", type="filepath")
         tex_other = gr.Audio(label="Textura Outros", type="filepath")
 
-    btn = gr.Button("Processar", variant="primary")
-    out = gr.Audio(label="Resultado Final")
+    btn = gr.Button("🎵 Processar e Gerar Stems", variant="primary", size="lg")
+    
+    gr.Markdown("### 3. Resultados - Stems Individuais Modificados")
+    with gr.Row():
+        out_vocal = gr.Audio(label="🎤 Vocal Modificado")
+        out_drums = gr.Audio(label="🥁 Bateria Modificada")
+    with gr.Row():
+        out_bass = gr.Audio(label="🎸 Baixo Modificado")
+        out_guitar = gr.Audio(label="🎸 Guitarra Modificada")
+    with gr.Row():
+        out_other = gr.Audio(label="🎹 Outros Modificados")
+    
+    gr.Markdown("### 4. Mix Final Completo")
+    out_completo = gr.Audio(label="🎶 Música Completa Modificada")
 
     btn.click(
         fn=processar_tudo,
         inputs=[input_music, tex_vocal, tex_drums, tex_bass, tex_guitar, tex_other],
-        outputs=out
+        outputs=[out_vocal, out_drums, out_bass, out_guitar, out_other, out_completo]
     )
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(share=True)
