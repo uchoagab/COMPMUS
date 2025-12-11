@@ -162,7 +162,6 @@ def aplicar_textura_local(stem_path, textura_path):
     y_resultado = y_resultado / (np.max(np.abs(y_resultado)) + 1e-9) * 0.8
     
     return y_resultado, sr
-<<<<<<< HEAD
 
 # --- NOVA FUNÇÃO: REMIXAR (Manipulação do Resultado) ---
 def remixar(vol_vocal, vol_drums, vol_bass, vol_guitar, vol_other, caminhos_dict):
@@ -223,8 +222,6 @@ def remixar(vol_vocal, vol_drums, vol_bass, vol_guitar, vol_other, caminhos_dict
     output_remix = "resultado_remix_final.wav"
     sf.write(output_remix, mix_final, sr_final)
     return output_remix
-=======
->>>>>>> 1dc193e00641685c3f0f82688f01549546a32fe6
 
 # --- PRINCIPAL ---
 def processar_tudo(input_music, tex_vocal, tex_drums, tex_bass, tex_guitar, tex_other):
@@ -252,11 +249,7 @@ def processar_tudo(input_music, tex_vocal, tex_drums, tex_bass, tex_guitar, tex_
             "Bass": tex_bass, "Guitar": tex_guitar, "Other": tex_other
         }
 
-<<<<<<< HEAD
         # Dicionário para armazenar caminhos dos stems processados
-=======
-        # Dicionário para armazenar stems processados
->>>>>>> 1dc193e00641685c3f0f82688f01549546a32fe6
         stems_processados = {}
         mix_final, sr_final = None, 44100
         processou_algo = False
@@ -282,11 +275,7 @@ def processar_tudo(input_music, tex_vocal, tex_drums, tex_bass, tex_guitar, tex_
             sf.write(output_individual, audio, sr)
             stems_processados[inst] = output_individual
 
-<<<<<<< HEAD
             # Mixagem Inicial (Padrão 1.0 volume)
-=======
-            # Mixagem
->>>>>>> 1dc193e00641685c3f0f82688f01549546a32fe6
             if mix_final is None:
                 mix_final, sr_final = audio, sr
             else:
@@ -294,23 +283,16 @@ def processar_tudo(input_music, tex_vocal, tex_drums, tex_bass, tex_guitar, tex_
                 mix_final = mix_final[:m_len] + audio[:m_len]
 
         if not processou_algo:
-<<<<<<< HEAD
             return [None] * 7
 
         # Salvar mix final inicial
         output_completo = None
-=======
-            return None, None, None, None, None, None
-
-        # Salvar mix final
->>>>>>> 1dc193e00641685c3f0f82688f01549546a32fe6
         if mix_final is not None:
             mix_final = mix_final / np.max(np.abs(mix_final)) # Normalizar
             output_completo = "resultado_completo.wav"
             sf.write(output_completo, mix_final, sr_final)
             print("✅ Concluído com sucesso!")
             
-<<<<<<< HEAD
         # Retornar os outputs e o ESTADO (stems_processados)
         return (
             stems_processados.get("Vocals"),
@@ -333,26 +315,6 @@ with gr.Blocks(title="Texture Tool V2 + Mixer") as demo:
 
     # ESTADO: Guarda os caminhos dos arquivos gerados para o remixer usar
     stems_state = gr.State({}) 
-=======
-            # Retornar os 6 outputs: vocal, drums, bass, guitar, other, completo
-            return (
-                stems_processados.get("Vocals"),
-                stems_processados.get("Drums"),
-                stems_processados.get("Bass"),
-                stems_processados.get("Guitar"),
-                stems_processados.get("Other"),
-                output_completo
-            )
-            
-    except Exception as e:
-        print(f"❌ ERRO GERAL: {e}")
-        return None, None, None, None, None, None
-
-# --- INTERFACE ---
-with gr.Blocks(title="Texture Tool V2") as demo:
-    gr.Markdown("# 🎹 Texture Transfer Tool")
-    gr.Markdown("### Separe sua música em stems e aplique texturas personalizadas")
->>>>>>> 1dc193e00641685c3f0f82688f01549546a32fe6
     
     with gr.Row():
         input_music = gr.Audio(label="1. Música Original", type="filepath")
@@ -361,12 +323,10 @@ with gr.Blocks(title="Texture Tool V2") as demo:
     with gr.Row():
         tex_vocal = gr.Audio(label="Textura Voz", type="filepath")
         tex_drums = gr.Audio(label="Textura Bateria", type="filepath")
-    with gr.Row():
         tex_bass = gr.Audio(label="Textura Baixo", type="filepath")
         tex_guitar = gr.Audio(label="Textura Guitarra", type="filepath")
         tex_other = gr.Audio(label="Textura Outros", type="filepath")
 
-<<<<<<< HEAD
     btn_process = gr.Button("🎵 Processar e Gerar Stems", variant="primary", size="lg")
     
     gr.Markdown("---")
@@ -383,22 +343,6 @@ with gr.Blocks(title="Texture Tool V2") as demo:
             vol_other = gr.Slider(0, 2, value=1, step=0.1, label="Volume Outros")
             
             btn_remix = gr.Button("🔄 Atualizar Mix", variant="secondary")
-=======
-    btn = gr.Button("🎵 Processar e Gerar Stems", variant="primary", size="lg")
-    
-    gr.Markdown("### 3. Resultados - Stems Individuais Modificados")
-    with gr.Row():
-        out_vocal = gr.Audio(label="🎤 Vocal Modificado")
-        out_drums = gr.Audio(label="🥁 Bateria Modificada")
-    with gr.Row():
-        out_bass = gr.Audio(label="🎸 Baixo Modificado")
-        out_guitar = gr.Audio(label="🎸 Guitarra Modificada")
-    with gr.Row():
-        out_other = gr.Audio(label="🎹 Outros Modificados")
-    
-    gr.Markdown("### 4. Mix Final Completo")
-    out_completo = gr.Audio(label="🎶 Música Completa Modificada")
->>>>>>> 1dc193e00641685c3f0f82688f01549546a32fe6
 
         # Coluna da Direita: Player Principal
         with gr.Column(scale=2):
@@ -418,7 +362,6 @@ with gr.Blocks(title="Texture Tool V2") as demo:
     btn_process.click(
         fn=processar_tudo,
         inputs=[input_music, tex_vocal, tex_drums, tex_bass, tex_guitar, tex_other],
-<<<<<<< HEAD
         outputs=[out_vocal, out_drums, out_bass, out_guitar, out_other, out_completo, stems_state]
     )
 
@@ -431,10 +374,3 @@ with gr.Blocks(title="Texture Tool V2") as demo:
 
 if __name__ == "__main__":
     demo.launch(share=True)
-=======
-        outputs=[out_vocal, out_drums, out_bass, out_guitar, out_other, out_completo]
-    )
-
-if __name__ == "__main__":
-    demo.launch(share=True)
->>>>>>> 1dc193e00641685c3f0f82688f01549546a32fe6
